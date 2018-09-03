@@ -71,15 +71,16 @@ def main():
             
             if i==(length-1):#最后一张时输出JSON
                 filename = os.path.splitext(file)[0]
-                with codecs.open(filename+'.html', 'wb', encoding='utf-8') as fp:
-                    html = converter.convert('image/0.jpg',json.dumps(colors))
-                    fp.write(html)
-                    pass
+                html = converter.convert('image/0.jpg',json.dumps(colors))
+                if args.out:
+                    with codecs.open(args.out, 'wb', encoding='utf-8') as fp:
+                        fp.write(html)
+                else:
+                    with codecs.open(filename+'.html', 'wb', encoding='utf-8') as fp:
+                        fp.write(html)
+                        pass
     
-    if args.out:
-        with codecs.open(args.out, 'wb', encoding='utf-8') as fp:
-            fp.write(html)
-
+    
 if __name__ == "__main__":
     main()
 
