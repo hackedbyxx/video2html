@@ -10,6 +10,19 @@ import codecs
 import json
 from converter import Img2HTMLConverter
 
+def mkdir(path):
+    # 引入模块
+    import os
+    isExists=os.path.exists(path)
+    if not isExists:
+        # 如果不存在则创建目录
+        os.makedirs(path) 
+        print(path+' 创建成功')
+        return True
+    else:
+        # 如果目录存在则不创建，并提示目录已存在
+        print(path+' 目录已存在')
+        return False
 
 def main():
     parser = argparse.ArgumentParser(description='img2html : Convert image to HTML')
@@ -37,6 +50,8 @@ def main():
         font_family=args.font,
     )
     file = getattr(args, 'in')
+    mkdir('image')
+
     #每帧视频间隔
     density = 10
     cap = cv2.VideoCapture(file)  #返回一个capture对象
