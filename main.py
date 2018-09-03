@@ -75,16 +75,10 @@ def main():
                     html = converter.convert('image/0.jpg',json.dumps(colors))
                     fp.write(html)
                     pass
-                '''
-                with codecs.open('image/'+str(i)+'.json', 'wb', encoding='utf-8') as fp:
-                    fp.write(json.dumps(colors))
     
     if args.out:
         with codecs.open(args.out, 'wb', encoding='utf-8') as fp:
             fp.write(html)
-    else:
-        print(html)
-        '''
 
 if __name__ == "__main__":
     main()
