@@ -35,7 +35,7 @@ def main():
     parser.add_argument('-f', '--font', default='monospace', metavar='FONT', help='html font')
     parser.add_argument('-i', '--in', metavar='IN', help='image to convert', required=True)
     parser.add_argument('-o', '--out', metavar='OUT', help='output file')
-    parser.add_argument('-d', '--density', default=10, type=int, metavar='OUT', help='output file')
+    parser.add_argument('-d', '--density', default=10, type=int, metavar='DENSITY', help='video frame density')
 
     args, text = parser.parse_known_args()
 
