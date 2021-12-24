@@ -4,10 +4,12 @@
 from __future__ import print_function, unicode_literals
 
 import os
+
 import cv2
 import argparse
 import codecs
 import json
+
 from converter import Img2HTMLConverter
 
 def mkdir(path):
@@ -26,19 +28,14 @@ def mkdir(path):
 
 def main():
     parser = argparse.ArgumentParser(description='img2html : Convert image to HTML')
-    parser.add_argument('-b', '--background', default='000000', metavar='#RRGGBB',
-                        help='background color (#RRGGBB format)')
-    parser.add_argument('-s', '--size', default=10, type=int, metavar='(4~30)',
-                        help='font size (int)')
-    parser.add_argument('-c', '--char', default='淘汰制作', metavar='CHAR',
-                        help='characters')
-    parser.add_argument('-t', '--title', default='create by xx', metavar='TITLE',
-                        help='html title')
-    parser.add_argument('-f', '--font', default='monospace', metavar='FONT',
-                        help='html font')
+    parser.add_argument('-b', '--background', default='000000', metavar='#RRGGBB', help='background color (#RRGGBB format)')
+    parser.add_argument('-s', '--size', default=10, type=int, metavar='(4~30)', help='font size (int)')
+    parser.add_argument('-c', '--char', default='淘汰制作', metavar='CHAR', help='characters')
+    parser.add_argument('-t', '--title', default='create by xx', metavar='TITLE', help='html title')
+    parser.add_argument('-f', '--font', default='monospace', metavar='FONT', help='html font')
     parser.add_argument('-i', '--in', metavar='IN', help='image to convert', required=True)
-    parser.add_argument('-o', '--out', default="test.html", metavar='OUT',
-                        help='output file')
+    parser.add_argument('-o', '--out', metavar='OUT', help='output file')
+    parser.add_argument('-d', '--density', default=10, type=int, metavar='OUT', help='output file')
 
     args, text = parser.parse_known_args()
 
@@ -53,34 +50,50 @@ def main():
     mkdir('image')
 
     #每帧视频间隔
-    density = 10
+    density = args.density
     cap = cv2.VideoCapture(file)  #返回一个capture对象
     frames = cap.get(7)#获取所有的帧数
     colors = json.loads('[]')
     length = int(frames/density)
-    for i in range(0,length):
+
+    width, height = 0, 0
+    target_w, target_h = 1280, 720
+    for i in range(0, length):
         cap.set(cv2.CAP_PROP_POS_FRAMES,i*density)  #设置要获取的帧号
-        a,b=cap.read()  #read方法返回一个布尔值和一个视频帧。若帧读取成功，则返回True
-        cv2.imshow('b', b)
-        cv2.waitKey(1000)
-        if cv2.imwrite('image/'+str(i)+'.jpg',b):       #存储为图像
-            
-            
-            color = converter.convertColors('image/'+str(i)+'.jpg')
-            colors.append(json.loads(color))
-            
-            if i==(length-1):#最后一张时输出JSON
-                filename = os.path.splitext(file)[0]
-                html = converter.convert('image/0.jpg',json.dumps(colors))
-                if args.out:
-                    with codecs.open(args.out, 'wb', encoding='utf-8') as fp:
-                        fp.write(html)
-                else:
-                    with codecs.open(filename+'.html', 'wb', encoding='utf-8') as fp:
-                        fp.write(html)
-                        pass
-    
-    
+        a, b=cap.read()  #read方法返回一个布尔值和一个视频帧。若帧读取成功，则返回True
+        cv2.imshow('view', b)
+        cv2.waitKey(1)
+
+        if width == 0:
+            height, width, pixels = b.shape
+        # 按比例缩高
+        if width > target_w and height < width:
+            height = int(target_w / width * height)
+            width = target_w
+        # 按比例缩宽
+        elif height > target_h:
+            width = int(target_h / height * width)
+            height = target_h
+
+        b = cv2.resize(b, dsize=(width, height), interpolation=cv2.INTER_CUBIC)
+        converter.showprogress(i/length)
+        color = converter.convertNDArrayColors(b)
+        colors.append(json.loads(color))
+
+    os.system("cls")
+    filename = args.out
+    html = converter.convert(width, height, colors)
+    if args.out:
+        with codecs.open(filename, 'wb', encoding='utf-8') as fp:
+            fp.write(html)
+    else:
+        filename = os.path.splitext(file)[0]
+        with codecs.open(filename + '.html', 'wb', encoding='utf-8') as fp:
+            fp.write(html)
+            pass
+
+    print("转换成功，输出文件{}.html".format(filename))
+
 if __name__ == "__main__":
     main()
 

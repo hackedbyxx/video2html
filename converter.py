@@ -10,6 +10,7 @@ from collections import namedtuple
 from itertools import cycle
 import jinja2
 from PIL import Image
+import numpy as np
 
 Point = namedtuple('Point', ['x', 'y'])
 Pixel = namedtuple('Pixel', ['r', 'g', 'b'])
@@ -36,7 +37,7 @@ TEMPLATE = '''
 <body>
 <div>
 {% for group in html_image %}
-    {% for item in group %}<font color="#{{ item.color }}">{{ item.char }}</font>{% endfor %}
+    {% for item in group %}<font color="{{ item.color }}">{{ item.char }}</font>{% endfor %}
     <br>
 {% endfor %}
 </div>
@@ -62,21 +63,21 @@ TEMPLATE = '''
 </body>
 </html>'''
 
-
 _c = cycle(r'/-\|')
 
 
 def _progress_callback(percent):
-    if percent == 100:
-        os.system("cls")
-        print("100%完成！")  
-    else:
-        lca = getattr(_progress_callback, '_last_call_at', 0)
-        if time.time() - lca > 0.5:
-            _progress_callback._last_call_at = time.time()
-            #sys.stdout.write('\r{} progress: {:.2f}%'.format(_c.next(), percent))
-            
-            Img2HTMLConverter.showprogress(percent)
+    pass
+    # if percent == 100:
+    #     # os.system("cls")
+    #     print("100%完成！")
+    # else:
+    #     lca = getattr(_progress_callback, '_last_call_at', 0)
+    #     if time.time() - lca > 0.5:
+    #         _progress_callback._last_call_at = time.time()
+    #         #sys.stdout.write('\r{} progress: {:.2f}%'.format(_c.next(), percent))
+    #
+    #         Img2HTMLConverter.showprogress(percent)
 
 
 class Img2HTMLConverter(object):
@@ -92,34 +93,34 @@ class Img2HTMLConverter(object):
         self.title = title
         self.font_family = font_family
         if isinstance(char, str):
-            #char = char.encode('utf-8')
+            # char = char.encode('utf-8')
             pass
         self.char = cycle(char)
         self._prg_cb = progress_callback or _progress_callback
 
-    def convert(self, source ,colors):
+    def convert(self, source, colors):
         image = Image.open(source)
         width, height = image.size
 
-        #按比例缩高
-        if width>1200 and height<width:
-            height = int(1200/width*height)
+        # 按比例缩高
+        if width > 1200 and height < width:
+            height = int(1200 / width * height)
             width = 1200
-        #按比例缩宽
-        elif height>800:
-            width = int(800/height*width)
+        # 按比例缩宽
+        elif height > 800:
+            width = int(800 / height * width)
             height = 800
 
-        size = width,height
+        size = width, height
         image.thumbnail(size, Image.ANTIALIAS)
-        print(width,height)
-        width,height = image.size
+        # print(width,height)
+        width, height = image.size
         row_blocks = int(round(float(width) / self.font_size))
         col_blocks = int(round(float(height) / self.font_size))
         html_image = HTMLImage()
         progress = 0.0
         step = 1. / (col_blocks * row_blocks)
-
+        print(col_blocks, row_blocks)
         for col in range(col_blocks):
             render_group = RenderGroup()
             for row in range(row_blocks):
@@ -132,7 +133,7 @@ class Img2HTMLConverter(object):
                         pixels.append(Pixel(*image.getpixel(point)[:3]))
                 average = self.get_average(pixels=pixels)
                 color = self.rgb2hex(average)
-                render_item = RenderItem(color=color, char=next(self.char))
+                render_item = RenderItem(color='#' + color, char=next(self.char))
                 render_group.append(render_item)
 
                 progress += step
@@ -141,73 +142,65 @@ class Img2HTMLConverter(object):
             html_image.append(render_group)
 
         self._prg_cb(100)
-        return self.render(html_image,colors)
+        return self.render(html_image, colors)
 
-    def convertColors(self, source):
-
+    def convertNDArrayColors(self, ndarray1):
         colors = []
-        
-        image = Image.open(source)
-        width, height = image.size
+        height, width, pixels = ndarray1.shape
 
-        #按比例缩高
-        if width>1200 and height<width:
-            height = int(1200/width*height)
-            width = 1200
-        #按比例缩宽
-        elif height>800:
-            width = int(800/height*width)
-            height = 800
+        row_blocks = int(round(float(width) / self.font_size))
+        col_blocks = int(round(float(height) / self.font_size))
+        progress = 0.0
+        for col in range(col_blocks):
+            for row in range(row_blocks):
+                pixels = ndarray1[col * self.font_size:(col+1) * self.font_size, row * self.font_size:(row+1) * self.font_size]#.copy()
+                r, g, b = 0, 0, 0
+                for rowPixel in pixels:
+                    for pixel in rowPixel:
+                        r += int(pixel[2])
+                        g += int(pixel[1])
+                        b += int(pixel[0])
 
-        size = width,height
-        image.thumbnail(size, Image.ANTIALIAS)
-        print(width,height)
-        width,height = image.size
+                base = float(self.font_size * self.font_size)
+                pixel = Pixel(
+                    r=int(round(r / base)),
+                    g=int(round(g / base)),
+                    b=int(round(b / base)),
+                )
+                color = self.rgb2hex(pixel)
+                colors.append('#' + color)  # 将color存入数组里
+                self._prg_cb(int(progress * 100))
+        self._prg_cb(100)
+        return json.dumps(colors)
+
+    def convert(self, width, height, colors):
         row_blocks = int(round(float(width) / self.font_size))
         col_blocks = int(round(float(height) / self.font_size))
         html_image = HTMLImage()
-        progress = 0.0
-        step = 1. / (col_blocks * row_blocks)
-
         for col in range(col_blocks):
             render_group = RenderGroup()
             for row in range(row_blocks):
-                pixels = []
-                for y in range(self.font_size):
-                    for x in range(self.font_size):
-                        point = Point(row * self.font_size + x, col * self.font_size + y)
-                        if point.x >= width or point.y >= height:
-                            continue
-                        pixels.append(Pixel(*image.getpixel(point)[:3]))
-                average = self.get_average(pixels=pixels)
-                color = self.rgb2hex(average)
-                colors.append('#'+color)#将color存入数组里
-                render_item = RenderItem(color=color, char=next(self.char))
+                render_item = RenderItem(color=colors[0][col*row_blocks+row], char=next(self.char))
                 render_group.append(render_item)
-    
-                progress += step
-                self._prg_cb(int(progress * 100))
-
-            #html_image.append(render_group)
-
+            html_image.append(render_group)
         self._prg_cb(100)
-        return json.dumps(colors)
-        #return self.render(html_image),'null'   
+        return self.render(html_image, colors)
 
-    def showprogress(progress):
-        os.system("cls")
-        #打印一个#号，这种方法打印不会自动换行  
-        sys.stdout.write("转换中："+str(progress)+'%')  
-        #实时刷新一下，否则上面这一条语句，会等#号全部写入到缓存中后才一次性打印出来  
-        sys.stdout.flush()  
-        #每个#号等待0.1秒的时间打印  
-        #time.sleep(0.1)  
+    def showprogress(self, progress):
+        # os.system("cls")
+        # 打印一个#号，这种方法打印不会自动换行
+        # sys.stdout.write("转换中："+str(progress)+'%')
+        print('\r转换中：{:.2%}'.format(progress), end='')
+        # 实时刷新一下，否则上面这一条语句，会等#号全部写入到缓存中后才一次性打印出来
+        sys.stdout.flush()
+        # 每个#号等待0.1秒的时间打印
+        # time.sleep(0.1)
 
-    def render(self, html_image,colors):
+    def render(self, html_image, colors):
         template = jinja2.Template(TEMPLATE)
         return template.render(
             html_image=html_image,
-            colors =colors,
+            colors=colors,
             size=self.font_size,
             background=self.background,
             title=self.title,
